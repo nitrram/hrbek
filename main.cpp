@@ -9,60 +9,79 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-cv::Point2f computeIntersect(cv::Vec4i a, cv::Vec4i b, int min_d);
+#include <chrono>
 
-void blah(const std::vector<cv::Vec4i> &lines, const cv::Mat &img2);
+using namespace cv;
+using namespace std;
 
-bool check_dist(const std::map<int,std::vector<int>> &dists, const cv::Point2f &p);
+Point2f computeIntersect(Vec4i a, Vec4i b, int min_d);
+
+void blah(const vector<Vec4i> &lines, const Mat &img2);
+
+bool check_dist(const map<int,vector<int>> &dists, const Point2f &p);
+
+void compute_corners(vector<Point2f> &corners, const Mat &img);
 
 int main(int argc, char *argv[]) {
 
 	if(argc != 2) {
-		std::cerr << "No input file. Bailing out...\n";
+		cerr << "No input file. Bailing out...\n";
 		return -1;
 	}
 
-	std::ifstream fs;
-	fs.open(argv[1]); //, std::fstream::in);
+	ifstream fs;
+	fs.open(argv[1]); //, fstream::in);
 
-	cv::Mat image;
-	image = cv::imread(argv[1], CV_8UC1);
+	Mat image;
+	image = imread(argv[1], CV_8UC1);
 
-//	cv::GaussianBlur(image,image,cv::Size(3,3),0);
-	adaptiveThreshold(image, image,255,CV_ADAPTIVE_THRESH_MEAN_C, CV_THRESH_BINARY,75,10);
-	cv::bitwise_not(image, image);
+//	GaussianBlur(image,image,Size(3,3),0);
+	adaptiveThreshold(image, image,255,ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY,75,10);
+	bitwise_not(image, image);
 
 
-	std::vector<cv::Vec4i> lines;
-	HoughLinesP(image, lines, 2, CV_PI/180, 180, 300, 9);
+	vector<Vec4i> lines;
+	vector<Point2f> corners;
 
+	auto begin = chrono::high_resolution_clock::now();
+	compute_corners(corners, image);
+	auto end = chrono::high_resolution_clock::now();
+
+	cout << "corners: " << corners.size() << " in " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << " [ms]\n";
+//	HoughLinesP(image, lines, 2, CV_PI/180, 180, 300, 9);
+
+
+	for(const auto &c : corners) {
+		circle(image, c, 5, Scalar(255,255,255), FILLED, 8,0);
+	}
+	
 	if(!image.data) {
-		std::cerr << "Could not read the image\n";
+		cerr << "Could not read the image\n";
 		return -2;
 	}
 
 
-	// std::cout << "lines: " << lines.size() << std::endl;
+	// cout << "lines: " << lines.size() << endl;
 	// for(const auto &c : lines)
 	// {
 	//	  line(image,
-	//		   cv::Point2i(c[0],c[1]),
-	//		   cv::Point2i(c[2], c[3]),
-	//		   cv::Scalar(0, 255, 255));
+	//		   Point2i(c[0],c[1]),
+	//		   Point2i(c[2], c[3]),
+	//		   Scalar(0, 255, 255));
 	// }
 
 
-	blah(lines, image);
+//	blah(lines, image);
 
-	cv::namedWindow( "Display window", cv::WINDOW_AUTOSIZE );// Create a window for display.
-	cv::imshow( "Display window", image );					 // Show our image inside it.
+	namedWindow( "Display window", WINDOW_AUTOSIZE );// Create a window for display.
+	imshow( "Display window", image );					 // Show our image inside it.
 
-	cv::waitKey(0);
+	waitKey(0);
 
 	/*
 	  char c;
 	  while (fs.get(c))			 // loop getting single characters
-	  std::cout << c;
+	  cout << c;
 
 	*/
 	fs.close();
@@ -70,47 +89,47 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-cv::Point2f computeIntersect(cv::Vec4i a, cv::Vec4i b, int d)
+Point2f computeIntersect(Vec4i a, Vec4i b, int d)
 {
 	int x1 = a[0], y1 = a[1], x2 = a[2], y2 = a[3];
 	int x3 = b[0], y3 = b[1], x4 = b[2], y4 = b[3];
 	if (float d = ((float)(x1-x2) * (y3-y4)) - ((y1-y2) * (x3-x4)))
 	{
-		cv::Point2f pt;
+		Point2f pt;
 		pt.x = ((x1*y2 - y1*x2) * (x3-x4) - (x1-x2) * (x3*y4 - y3*x4)) / d;
 		pt.y = ((x1*y2 - y1*x2) * (y3-y4) - (y1-y2) * (x3*y4 - y3*x4)) / d;
 		//-10 is a threshold, the POI can be off by at most 10 pixels
-		if(pt.x<std::min(x1,x2)-d||pt.x>std::max(x1,x2)+d||pt.y<std::min(y1,y2)-d||pt.y>std::max(y1,y2)+d){
-			return cv::Point2f(-1,-1);
+		if(pt.x<min(x1,x2)-d||pt.x>max(x1,x2)+d||pt.y<min(y1,y2)-d||pt.y>max(y1,y2)+d){
+			return Point2f(-1,-1);
 		}
-		if(pt.x<std::min(x3,x4)-d||pt.x>std::max(x3,x4)+d||pt.y<std::min(y3,y4)-d||pt.y>std::max(y3,y4)+d){
-			return cv::Point2f(-1,-1);
+		if(pt.x<min(x3,x4)-d||pt.x>max(x3,x4)+d||pt.y<min(y3,y4)-d||pt.y>max(y3,y4)+d){
+			return Point2f(-1,-1);
 		}
 		return pt;
 	}
 	else
-		return cv::Point2f(-1, -1);
+		return Point2f(-1, -1);
 }
 
-void blah(const std::vector<cv::Vec4i> &lines, const cv::Mat &img2)
+void blah(const vector<Vec4i> &lines, const Mat &img2)
 {
 	int* poly = new int[lines.size()];
 	for(int i=0;i<lines.size();i++)poly[i] = - 1;
 	int curPoly = 0;
-	std::vector<std::vector<cv::Point2f> > corners;
+	vector<vector<Point2f> > corners;
 
-	std::map<int,std::vector<int>> dists;
+	map<int,vector<int>> dists;
 
 	for (int i = 0; i < lines.size(); i++)
 	{
 		for (int j = i+1; j < lines.size(); j++)
 		{
 
-			cv::Point2f pt = computeIntersect(lines[i], lines[j], 10);
+			Point2f pt = computeIntersect(lines[i], lines[j], 10);
 			if (pt.x >= 0 && pt.y >= 0&&pt.x<img2.size().width&&pt.y<img2.size().height){
 
 				if(poly[i]==-1&&poly[j] == -1){
-					std::vector<cv::Point2f> v;
+					vector<Point2f> v;
 					v.push_back(pt);
 					if(!check_dist(dists, pt)) {
 						corners.push_back(v);
@@ -167,24 +186,24 @@ void blah(const std::vector<cv::Vec4i> &lines, const cv::Mat &img2)
 	for(const auto &v : corners)
 		for(const auto &c : v) {
 			nc++;
-			circle(img2, c, 5, cv::Scalar(255,255,255), CV_FILLED, 8,0);
+			circle(img2, c, 5, Scalar(255,255,255), FILLED, 8,0);
 
-			std::cout << "[" << c.x << ", " << c.y << "]" << std::endl;
+			cout << "[" << c.x << ", " << c.y << "]" << endl;
 		}
 
-	std::cout << "number of corners: " << nc << "(map x: " << dists.size() << ")\n";
+	cout << "number of corners: " << nc << "(map x: " << dists.size() << ")\n";
 }
 
-bool check_dist(const std::map<int,std::vector<int>> &dists, const cv::Point2f &p)
+bool check_dist(const map<int,vector<int>> &dists, const Point2f &p)
 {
-	for(int pi = std::max(0, static_cast<int>(p.x - 10)); pi < p.x + 10; pi++)
+	for(int pi = max(0, static_cast<int>(p.x - 10)); pi < p.x + 10; pi++)
 	{
 		if(dists.find(pi) != dists.end())
 		{
 			for(int ys : dists.at(pi))
 			{
 				if((ys < (p.y + 10)) &&
-				   (ys > static_cast<int>(std::max(0, static_cast<int>(p.y - 10)))))
+				   (ys > static_cast<int>(max(0, static_cast<int>(p.y - 10)))))
 				{
 					return true;
 				}
@@ -193,4 +212,44 @@ bool check_dist(const std::map<int,std::vector<int>> &dists, const cv::Point2f &
 	}
 
 	return false;
+}
+
+
+void compute_corners(vector<Point2f> &corners, const Mat &img)
+{
+	vector<pair<int,int>> last_row = vector<pair<int,int>>(img.cols);
+	pair<int,int> last_col;
+
+	cout << "init: " << last_col.first << " " << last_col.second << endl;
+	cout << "last_row: " << last_row[0].first << " "  << last_row[0].second << endl;
+	
+	for(int i =0; i < img.rows; ++i) {
+		for(int j = 0; j < img.cols; ++j) {
+
+			int col = 0;
+			int row = 0;
+			if((img.at<uchar>(i,j) & 0xff) > 0) {
+				col = ++last_col.first;
+				row = ++last_row[j].second;
+			}
+			//TODO
+
+			if(
+				(((row == 0) || (i == (img.rows-1))) &&
+				 (last_row[j].second > 100)) ||
+				(((col == 0) || (j == (img.cols-1))) &&
+				 (last_col.first > 100))
+			) {
+					
+				corners.push_back(Point2f(j,i));
+			}
+			
+
+			last_col = std::make_pair(col, row);
+			last_row[j] = last_col;
+		}
+		last_col = make_pair(0,0); // reset
+	}
+
+	
 }
