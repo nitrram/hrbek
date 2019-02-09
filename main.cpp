@@ -18,7 +18,7 @@ Point2f computeIntersect(Vec4i a, Vec4i b, int min_d);
 
 void blah(const vector<Vec4i> &lines, const Mat &img2);
 
-bool check_dist(const map<int,vector<int>> &dists, const Point2f &p);
+bool check_dist(const map<int,vector<int>> &dists, const Point2f &p, int d);
 
 void compute_corners(vector<Point2f> &corners, const Mat &img);
 
@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
 	for(const auto &c : corners) {
 		circle(image, c, 5, Scalar(255,255,255), FILLED, 8,0);
 	}
-	
+
 	if(!image.data) {
 		cerr << "Could not read the image\n";
 		return -2;
@@ -119,6 +119,7 @@ void blah(const vector<Vec4i> &lines, const Mat &img2)
 	vector<vector<Point2f> > corners;
 
 	map<int,vector<int>> dists;
+	const int d = 10;
 
 	for (int i = 0; i < lines.size(); i++)
 	{
@@ -131,7 +132,7 @@ void blah(const vector<Vec4i> &lines, const Mat &img2)
 				if(poly[i]==-1&&poly[j] == -1){
 					vector<Point2f> v;
 					v.push_back(pt);
-					if(!check_dist(dists, pt)) {
+					if(!check_dist(dists, pt, d)) {
 						corners.push_back(v);
 						dists[pt.x].push_back(pt.y);
 					}
@@ -141,7 +142,7 @@ void blah(const vector<Vec4i> &lines, const Mat &img2)
 					continue;
 				}
 				if(poly[i]==-1&&poly[j]>=0){
-					if(!check_dist(dists, pt)) {
+					if(!check_dist(dists, pt, d)) {
 						corners[poly[j]].push_back(pt);
 						dists[pt.x].push_back(pt.y);
 					}
@@ -149,7 +150,7 @@ void blah(const vector<Vec4i> &lines, const Mat &img2)
 					continue;
 				}
 				if(poly[i]>=0&&poly[j]==-1){
-					if(!check_dist(dists, pt)) {
+					if(!check_dist(dists, pt, d)) {
 						corners[poly[i]].push_back(pt);
 						dists[pt.x].push_back(pt.y);
 					}
@@ -158,7 +159,7 @@ void blah(const vector<Vec4i> &lines, const Mat &img2)
 				}
 				if(poly[i]>=0&&poly[j]>=0){
 					if(poly[i]==poly[j]){
-						if(!check_dist(dists, pt)) {
+						if(!check_dist(dists, pt, d)) {
 							corners[poly[i]].push_back(pt);
 							dists[pt.x].push_back(pt.y);
 						}
@@ -167,7 +168,7 @@ void blah(const vector<Vec4i> &lines, const Mat &img2)
 
 					for(int k=0;k<corners[poly[j]].size();k++){
 						auto val = corners[poly[j]][k];
-						if(!check_dist(dists, val)) {
+						if(!check_dist(dists, val, d)) {
 							corners[poly[i]].push_back(val);
 							dists[val.x].push_back(val.y);
 						}
@@ -194,16 +195,16 @@ void blah(const vector<Vec4i> &lines, const Mat &img2)
 	cout << "number of corners: " << nc << "(map x: " << dists.size() << ")\n";
 }
 
-bool check_dist(const map<int,vector<int>> &dists, const Point2f &p)
+bool check_dist(const map<int,vector<int>> &dists, const Point2f &p, int d)
 {
-	for(int pi = max(0, static_cast<int>(p.x - 10)); pi < p.x + 10; pi++)
+	for(int pi = max(0, static_cast<int>(p.x - d)); pi < p.x + d; pi++)
 	{
 		if(dists.find(pi) != dists.end())
 		{
 			for(int ys : dists.at(pi))
 			{
-				if((ys < (p.y + 10)) &&
-				   (ys > static_cast<int>(max(0, static_cast<int>(p.y - 10)))))
+				if((ys < (p.y + d)) &&
+				   (ys > static_cast<int>(max(0, static_cast<int>(p.y - d)))))
 				{
 					return true;
 				}
@@ -220,30 +221,72 @@ void compute_corners(vector<Point2f> &corners, const Mat &img)
 	vector<pair<int,int>> last_row = vector<pair<int,int>>(img.cols);
 	pair<int,int> last_col;
 
-	cout << "init: " << last_col.first << " " << last_col.second << endl;
-	cout << "last_row: " << last_row[0].first << " "  << last_row[0].second << endl;
-	
+	map<int, vector<int>> dists;
+
+	const int d = 30;
+	const int anchor = 10;
+
+
 	for(int i =0; i < img.rows; ++i) {
 		for(int j = 0; j < img.cols; ++j) {
 
 			int col = 0;
 			int row = 0;
 			if((img.at<uchar>(i,j) & 0xff) > 0) {
-				col = ++last_col.first;
-				row = ++last_row[j].second;
+				col = 1+last_col.first;
+				row = 1+last_row[j].second;
 			}
 			//TODO
+			//<1,0><2,0><3,1><4,0><5,0><6,0><7,0>
+			//<0,0><0,0><0,2>
 
+			bool irow,icol,icross;
 			if(
-				(((row == 0) || (i == (img.rows-1))) &&
-				 (last_row[j].second > 100)) ||
-				(((col == 0) || (j == (img.cols-1))) &&
-				 (last_col.first > 100))
+				(irow = (((row == 0) || (i == (img.rows-1))) &&
+						 (last_row[j].second > 100))) ||
+				(icross = ((last_row[j].second > d) && (last_col.first > d)))
 			) {
-					
-				corners.push_back(Point2f(j,i));
+
+				if(irow) {
+					auto p = Point2f(j,i-last_row[j].second);
+					if(!check_dist(dists, p, d))
+					{
+						cout << "[" << p.x << ", " << p.y << "]\n";
+						corners.push_back(p);
+						dists[p.x].push_back(p.y);
+					}
+
+					if(j >= img.cols-anchor) {
+						p = Point2f(img.cols-j, p.y);
+						if(!check_dist(dists, p, d)) {
+							corners.push_back(p);
+							dists[p.x].push_back(p.y);
+						}
+					}
+				}
+				else if(icross) {
+					auto p = Point2f(j,i);
+					if(!check_dist(dists, p, d)) {
+						corners.push_back(p);
+						dists[p.x].push_back(p.y);
+
+						p = Point2f(j,i-last_row[j].second);
+						if(!check_dist(dists, p, d))
+						{
+							corners.push_back(p);
+							dists[p.x].push_back(p.y);
+						}
+					}
+
+					if(j >= img.cols-anchor) {
+						p = Point2f(img.cols-j, p.y);
+						if(!check_dist(dists, p, d)) {
+							corners.push_back(p);
+							dists[p.x].push_back(p.y);
+						}
+					}
+				}
 			}
-			
 
 			last_col = std::make_pair(col, row);
 			last_row[j] = last_col;
@@ -251,5 +294,5 @@ void compute_corners(vector<Point2f> &corners, const Mat &img)
 		last_col = make_pair(0,0); // reset
 	}
 
-	
+
 }
