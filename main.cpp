@@ -57,13 +57,12 @@ int main(int argc, char *argv[]) {
 
 	auto quads = generate_quads(sort_corners(corners));
 
-	for(const auto &q : quads) {
-		Mat im;
-		ocr->SetImage(im.data, im.cols, im.rows, 1, im.step);
-		auto outText = string(ocr->GetUTF8Text());
-	}
+	//for(const auto &q : quads) {
+		//Mat im;
+		//ocr->SetImage(im.data, im.cols, im.rows, 1, im.step);
+		//auto outText = string(ocr->GetUTF8Text());
+	//}
 
-	/*
 	cout << "quads: " << quads.size() << endl;
 	cout << "corners: " << corners.size() << " in " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << " [ms]\n";
 
@@ -71,11 +70,10 @@ int main(int argc, char *argv[]) {
 		//cout << "[" << c.x << ", " << c.y << "]\n";
 		circle(image, c, 5, Scalar(255,255,255), FILLED, 8,0);
 	}
-	*/
 
 	if(!image.data) {
 		cerr << "Could not read the image\n";
-		return -2;
+		exit(3);
 	}
 
 	namedWindow( "Display window", WINDOW_AUTOSIZE );// Create a window for display.
@@ -85,9 +83,9 @@ int main(int argc, char *argv[]) {
 
 	fs.close();
 
-	api->End();
+	ocr->End();
 
-	delete api;
+	delete ocr;
 
 	return 0;
 }
