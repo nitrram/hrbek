@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
 	int day_of_week = -1;
 	vector<vector<string>> list(5);
 	for(const auto &q : quads) {		
-		Rect quad_crop(q[0].x, q[0].y, abs(q[1].x - q[0].x), abs(q[3].y - q[0].y));
+		Rect quad_crop(q[0].x + 2, q[0].y - 2, abs(q[1].x - q[0].x) - 2, abs(q[3].y - q[0].y) - 2);
 		Mat crop = orig(quad_crop);
 				
 		ocr->SetImage(crop.data, crop.cols, crop.rows, 1, crop.step);
