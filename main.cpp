@@ -44,9 +44,7 @@ int main(int argc, char *argv[]) {
 	Mat image;
 	image = imread(argv[1], CV_8UC1);
 
-	adaptiveThreshold(image, image,255,ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY,75,10);
-	bitwise_not(image, image);
-
+	adaptiveThreshold(image, image,255,ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV,75,10);
 
 	vector<Vec4i> lines;
 	vector<Point2f> corners;
@@ -57,17 +55,30 @@ int main(int argc, char *argv[]) {
 
 	auto quads = generate_quads(sort_corners(corners));
 
-	//for(const auto &q : quads) {
-		//Mat im;
-		//ocr->SetImage(im.data, im.cols, im.rows, 1, im.step);
-		//auto outText = string(ocr->GetUTF8Text());
-	//}
+	for(const auto &q : quads) {		
+		Rect quad_crop(q[0].x, q[0].y, abs(q[1].x - q[0].x), abs(q[3].y - q[0].y));
 
+		//TODO: magnify for ocr to provide better output
+		Mat crop = image(quad_crop);
+
+
+		resize(crop, crop, Size(crop.cols * 4, crop.rows * 4));
+		adaptiveThreshold(crop, crop, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 75, 10);
+		
+		
+		ocr->SetImage(crop.data, crop.cols, crop.rows, 1, crop.step);
+		auto outText = string(ocr->GetUTF8Text());
+
+#ifdef DEBUG
+		cout << outText << endl;
+#endif
+	}
+
+#ifdef DEBUG
 	cout << "quads: " << quads.size() << endl;
 	cout << "corners: " << corners.size() << " in " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << " [ms]\n";
 
 	for(const auto &c : corners) {
-		//cout << "[" << c.x << ", " << c.y << "]\n";
 		circle(image, c, 5, Scalar(255,255,255), FILLED, 8,0);
 	}
 
@@ -80,6 +91,7 @@ int main(int argc, char *argv[]) {
 	imshow( "Display window", image );					 // Show our image inside it.
 
 	waitKey(0);
+#endif
 
 	fs.close();
 

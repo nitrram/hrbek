@@ -1,6 +1,7 @@
 #include <vector>
 #include <algorithm>
 #include <map>
+#include <iostream>
 
 #include <opencv2/core/core.hpp>
 
@@ -44,10 +45,10 @@ extern map<int,vector<int>> sort_corners(vector<Point2f> &corners)
 		y = p.y;
 	}
 
-	sort(corners.begin(), corners.end(), [](const Point2f &p0, const Point2f &p1)
-		 {
-			 return (p0.y < p1.y || (p0.y == p1.y && p0.x < p1.x));
-		 });
+	for(auto &a : out)
+	{
+		sort(a.second.begin(), a.second.end());
+	}
 
 	return out;
 }
@@ -153,10 +154,10 @@ extern vector<vector<Point2f>> generate_quads(map<int, vector<int>> &&corners)
 				if(ix > 0) {
 					quads.push_back(
 						{
-							Point2f(ix, it->first),
-							Point2f(i, it->first),
-							Point2f(i, next(it)->first),
-							Point2f(ix, next(it)->first)
+							Point2f(ix, it->first), //left-top
+							Point2f(i, it->first), //right-top
+							Point2f(i, next(it)->first), //right-bottom
+							Point2f(ix, next(it)->first) //left-bottom
 						}
 					);
 //					cout << "i: " << i << " qu[" << quads.size() << "]\n";
