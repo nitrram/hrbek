@@ -25,6 +25,10 @@ extern void compute_corners(vector<Point2f> &corners, const Mat &img);
 
 extern vector<vector<Point2f>> generate_quads(map<int, vector<int>> &&corners);
 
+extern int get_day_of_week(const std::string &hypothesis);
+
+extern std::string smooth_text(const std::string &hypothesis);
+
 int main(int argc, char *argv[]) {
 
 	if(argc != 2) {
@@ -41,10 +45,11 @@ int main(int argc, char *argv[]) {
 	ifstream fs;
 	fs.open(argv[1]); //, fstream::in);
 
+	Mat orig;
 	Mat image;
-	image = imread(argv[1], CV_8UC1);
-
-	adaptiveThreshold(image, image,255,ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV,75,10);
+	orig = imread(argv[1], CV_8UC1);
+	
+	adaptiveThreshold(orig, image,255,ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV,75,10);
 
 	vector<Vec4i> lines;
 	vector<Point2f> corners;
@@ -55,26 +60,44 @@ int main(int argc, char *argv[]) {
 
 	auto quads = generate_quads(sort_corners(corners));
 
+	int day_of_week = -1;
+	vector<vector<string>> list(5);
 	for(const auto &q : quads) {		
 		Rect quad_crop(q[0].x, q[0].y, abs(q[1].x - q[0].x), abs(q[3].y - q[0].y));
-
-		//TODO: magnify for ocr to provide better output
-		Mat crop = image(quad_crop);
-
-
-		resize(crop, crop, Size(crop.cols * 4, crop.rows * 4));
-		adaptiveThreshold(crop, crop, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 75, 10);
-		
-		
+		Mat crop = orig(quad_crop);
+				
 		ocr->SetImage(crop.data, crop.cols, crop.rows, 1, crop.step);
-		auto outText = string(ocr->GetUTF8Text());
+		auto ocr_text = string(ocr->GetUTF8Text());
 
-#ifdef DEBUG
-		cout << outText << endl;
-#endif
+		
+		int tmp_day  = get_day_of_week(smooth_text(ocr_text));
+		if(tmp_day < 0)
+		{
+			if(day_of_week >= 0 && day_of_week < 5) {
+				
+				list[day_of_week].push_back(ocr_text);
+			}
+		} else
+		{
+			day_of_week = min(tmp_day, 5);
+		}
 	}
 
+	ofstream ff("hrbek.txt");
+	for(int i = 0; i < list.size(); ++i)
+	{
+		for(auto meal : list[i])
+		{
+		    replace(meal.begin(), meal.end(), '\n', ' ');
+			ff << to_string(i+1) + ";" + meal + ";\n";
+		}
+	}
+	ff.close();
+	
+
 #ifdef DEBUG
+	for(const auto &c : list) 
+		cout << "jidel: " << c.size() << endl;
 	cout << "quads: " << quads.size() << endl;
 	cout << "corners: " << corners.size() << " in " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << " [ms]\n";
 
