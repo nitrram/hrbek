@@ -60,7 +60,7 @@ extern void compute_corners(vector<Point2f> &corners, const Mat &img)
 
 	map<int, vector<int>> dists;
 
-	const int d = 30;
+	const int d = 40;
 	const int anchor = 10;
 
 	for(int i =0; i < img.rows; ++i) {
